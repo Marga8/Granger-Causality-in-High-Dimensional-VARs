@@ -1,0 +1,69 @@
+## Simulate Stationary time series from specific VAR(1) DGPs using specific Vcov matrices (i.e. not Identity)
+
+
+## DGP1: Sparse DGP
+## DGP2: Non-Sparse DGP
+## DGP3: Block-diagonal DGP
+
+## References: 
+## Hecq,A., Margaritella,L., Smeekes,S. "Granger Causality Testing in High-Dimensional VARs:a Post-Double-Selection Procedure
+## Callot,L., Kock,AB. "Oracle inequalities for high-dimensional vector autoregressions"
+
+##############################################################################################################################
+###################### Function to generate Covariance matrices with Toeplitz method or Chang method #########################
+##############################################################################################################################
+covariance <- function(T_,g,cov.mat,sigma,rho,min.eig=0.1,max.eig=1){
+  #n=observations,cov.mat=type of matrix,sigma=standard deviations (scalar or vector), rho = coefficient for toeplitz
+  
+  #Generate covariance matrix
+  if(cov.mat=="Toeplitz"){
+    m.ind <- matrix(rep(seq(1,T_),T_),T_,T_)
+    if(rho==0){
+      corr <- diag(rep(1,T_))
+    }else{
+      corr <- exp(log(rho)*abs(m.ind-t(m.ind))) #correlation matrix
+    }
+    if(length(sigma==1)){
+      sigma <- rep(sigma,T_) #standard deviations
+    }
+    S <- diag(sigma)%*%corr%*%diag(sigma) # Covariance matrix
+  }else if(cov.mat=="Chang"){
+    U <- matrix(runif(T_^2,-1,1),T_,T_)
+    B <- t(U)%*%U
+    spd <- eigen(B)
+    B <- spd$vectors%*%diag(spd$values^(-1/2))%*%t(spd$vectors)
+    H <- U%*% B
+    xi <- c(min.eig,runif(n-2,min.eig,max.eig),max.eig)
+    S <- t(H)%*%diag(xi)%*%H
+  }
+  #Generate errors and starting values
+  C <- t(chol(S))
+  e <- matrix(rnorm(T_*g),T_,g)
+  eps <- C%*%e
+  list(cov=S,errors=eps)
+}
+##############################################################################################################################
+##############################################################################################################################
+                                         ##### DGP1 with VCOV= diag(0.7) #####
+
+DGP1VCOV=function(T_,g){ 
+  coef1<-diag(0.5,nrow=g,ncol=g)
+  coef1[2,1]<-0.2    ## for power, comment out for simulating size
+  presample<-1
+  T_new<-T_+presample
+  eps<-covariance(T_=g,g=T_new,cov.mat = "Toeplitz",1,0.7)$error
+  X <- matrix(nrow=ncol(coef1),ncol=T_new)
+  X[,1] <- eps[,1]
+  for (t in 2:T_new) {
+    X[,t] <- (coef1)%*%X[,t-1]+eps[,t]
+  }
+  finseries<- X[,(1+presample):T_new]
+  ## (Optional) Plotting ##
+  ts.plot(t(finseries),col=c("red","blue","orange","purple","yellow","green","pink","black","brown","darkgrey"),lwd=2)
+  abline(h=0,col="black")
+  
+  return(t(finseries))
+}
+
+
+
