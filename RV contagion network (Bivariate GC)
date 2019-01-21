@@ -1,0 +1,149 @@
+##############################################################################################################
+##############################################################################################################
+###### bivariate GC network VHAR with WALD 1 #######
+library(readxl)
+library(glmnet)
+library(xts)
+library(ggplot2)
+library(aod)
+library(dplyr)
+library(igraph)
+library(car)
+library(highfrequency)
+library(qpcR)
+library(zoo)
+
+Data_RV <- read_excel("~/Downloads/Data_RV.xlsx", 
+                      col_types = c("blank", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric", "numeric", 
+                                    "numeric", "numeric")) #import data
+lData_RV<-as.matrix(log(Data_RV)) #take logs of every asset
+
+ldatalag1d<-data.frame(matrix(NA, nrow = 2239, ncol = 49)) #create lag 1 daily
+k=1
+for(m in 1:49){
+  ldatalag1d[,m]<-c(NA,lData_RV[(1:2238),k])  #define lags
+  k=k+1
+}
+colnames(ldatalag1d)<-c(paste(colnames(lData_RV),"lag1d", sep = ""))
+
+
+
+ldatalag1w<-data.frame(matrix(NA, nrow = 2234, ncol = 49)) #create lag 1 weekly
+for(m in 1:49){
+  ldatalag1w[,m]<-rollapply(lData_RV[1:2238,m], width = 5, by = 1, FUN = mean, align = "left")
+}
+colnames(ldatalag1w)<-c(paste(colnames(lData_RV),"lag1w", sep = ""))
+
+
+
+ldatalag1m<-data.frame(matrix(NA, nrow = 2217, ncol = 49)) #create lag 1 monthly
+for(m in 1:49){
+  ldatalag1m[,m]<-rollapply(lData_RV[1:2238,m], width = 22, by = 1, FUN = mean, align = "left")
+}
+colnames(ldatalag1m)<-c(paste(colnames(lData_RV),"lag1m", sep = ""))
+
+
+lDatafin<-cbind(lData_RV[23:nrow(lData_RV),],ldatalag1d[23:nrow(ldatalag1d),],ldatalag1w[18:nrow(ldatalag1w),],ldatalag1m)
+
+##########################################################################
+
+RVassets<-lDatafin[,(1:49)] #dep variables
+xcont<-(lDatafin[,(50:196)]) #store the regressors (all lags)
+temp<-xcont
+name=c(names(RVassets))
+feature=paste(names(RVassets))
+dat<-matrix(0,nrow=49,ncol=49)
+rownames(dat)<-colnames(xcont)[1:49]
+colnames(dat)<-feature
+a=1
+for (i in 1:49) {
+  ycont1<-RVassets[,i] #for each asset as dep variable
+  xcont<-as.matrix(xcont)
+  reg<-lm(ycont1~xcont)
+  for(j in 1:48){
+    
+    Wald<-linearHypothesis(reg, c(paste("xcont",colnames(xcont)[j],sep=""),
+                                  paste("xcont",colnames(xcont)[j+49],sep=""),
+                                  paste("xcont",colnames(xcont)[j+98],sep="")), 
+                           c(0,0,0), test = "F",white.adjust ="hc3" )
+    
+    
+    pippocippo<-Wald$`Pr(>F)`[2]
+    
+    if(pippocippo<0.01){
+      print(paste(colnames(xcont)[j],"does GC",names(RVassets[i])))
+      dat[which(rownames(dat)==colnames(xcont)[j]),which(colnames(dat)==names(RVassets[i]))]<-1
+    }
+    if(pippocippo>=0.01){
+      print(paste(colnames(xcont)[j],"does NOT GC",names(RVassets[i])))
+      
+    }
+  }
+}
+
+
+rownames(dat)<-colnames(dat)
+dat<-as.matrix(dat)
+colnames(dat)<-c()
+
+network=graph_from_adjacency_matrix(dat, mode='directed',diag=F,add.rownames = TRUE )
+V(network)$label = rownames(dat)
+
+network2<-get.edgelist(network, names=TRUE) # makes it into an edge list 
+network3<-graph_from_edgelist(network2) #create graph
+
+
+V(network3)$label=rownames(dat)
+
+#E(network3)[c(1,2,3)]$color="red"
+
+plot(network3,directed=T, layout=layout.circle, main="Realized Volatility Contagion",
+     edge.arrow.size=.1, vertex.color=c("gold"), vertex.size=5, vertex.frame.color="gray", 
+     vertex.label.color="black",vertex.label.cex=0.5, vertex.label.dist=0.5, edge.curved=0)#,edge.width=c(rep(1,3),rep(2,161))) 
+
+### SECOND OPTION ###
+plot(network3, vertex.size=10,edge.arrow.size=.1,vertex.label.cex=0.5)#,edge.width=c(rep(2,3),rep(1,161))) 
+######################################################################################
+#######################################################################################################
+##### To Highlight PG and MS #####
+
+V(network3)$label=c("AAPL","ABT","AXP","BA","BAC","BMY","BP","C","CAT","CL","CSCO","CVX","DELL","DIS","EK"
+                    ,"EXC","F","FDX","GE","GM","HD","HNZ","HON","IBM","INTC","JNJ","KO","LLY","MCD","MMM","MOT",
+                    "MRK","MS","MSFT","ORCL","PEP","PFE","PG","QCOM","SLB","T","TWX","UN","VZ","WFC","WMT","WYE",
+                    "XOM","XRX")
+
+E(network3)[c(1:67)]$color="grey" #color PG connections in RED, MS connections in blue
+E(network3)[c(68:71)]$color="blue"
+E(network3)[c(72:86)]$color="grey"
+E(network3)[c(87:94)]$color="red"
+E(network3)[c(95:125)]$color="grey"
+
+
+plot(network3,directed=T, layout=layout.circle, main="",
+     edge.arrow.size=.1, vertex.color=c("gold"), vertex.size=5, vertex.frame.color="gray", 
+     vertex.label.color="black",vertex.label.cex=0.51, vertex.label.dist=-0.5, edge.curved=0,edge.width=c(rep(1,67),rep(2,4),rep(1,14),rep(2,9),rep(1,31))) #OK
+
+
+
+### THIRD OPTION PROBLEMATIC FOR NOW ###
+#devtools::install_github("garthtarr/edgebundleR")
+#install.packages("edgebundleR")
+#library(edgebundleR)
+
+#edgebundle(network, fontsize = 10) #da aggiustare
+
