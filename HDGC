@@ -1,0 +1,201 @@
+# Package dependencies
+install.packages(readxl);library(readxl)
+install.packages(glmnet);library(glmnet)
+install.packages(aod);library(aod)
+install.packages(dplyr);library(dplyr)
+install.packages(HDGC);library(HDGC)
+###############################################################################################################
+###############################################################################################################
+######################################## FOR TESTING ##########################################################
+dataset <- read_excel("Final Dataset 1995-2015.xlsx",
+                   col_types = c("numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric"))
+dataset<-as.data.frame(dataset[, colSums(is.na(dataset))==0]) #eliminate missings if any
+dataset<-as.data.frame(scale(dataset)) #standardize
+y="GDPC96"
+x="M1REALx"
+lags=2
+crit="bic"
+alpha=1
+sign=0.05
+###################################################################################################################
+###################################################################################################################
+
+
+HDGC<-function(x,y,data,lags,crit,alpha,sign){
+
+# errors and warnings
+if(is.data.frame(data)==F) stop('data is not a dataframe')
+
+  #if(is.na(data)==T){
+  #data<-(data[, colSums(is.na(data))==0])
+#} #warning('dataset contains missings, columns have been removed')
+
+#  if(std==T){
+#  scale(data)
+#}
+
+if(lags<=0) stop('lags argument must be positive')
+
+#create lags
+Final_Dataset<-data.frame(matrix(NA, nrow = nrow(data), ncol = (ncol(data)*lags)))
+vectornames<-matrix(NA,1,(ncol(data)*lags))
+a=1
+b=ncol(data)
+  for (j in 1:lags) {
+lag<-data.frame(matrix(NA, nrow = nrow(data), ncol = ncol(data)))
+k=1
+for(m in 1:ncol(data)){
+  lag[1:j,m]<-c(rep(NA,j))
+  lag[((j+1):nrow(data)),m]<-data[(1:(nrow(data)-j)),k]
+  k=k+1
+}
+colnames(lag)<-c(paste(colnames(data),"lag",j, sep = ""))
+Final_Dataset[,a:b]<-lag
+vectornames[,a:b]<-c(colnames(lag))
+a=1+b
+b=b+ncol(data)
+  }
+Final_Dataset<-(Final_Dataset[-c(1:lags),]) #cut off missings
+rownames(Final_Dataset) <- 1:nrow(Final_Dataset)
+colnames(Final_Dataset)<-vectornames
+Final_Dat<-cbind(data[(lags+1):nrow(data),],Final_Dataset)
+Final_Dat<-as.matrix(Final_Dat) #coerce into matrix
+
+# Post-double selection LM estimation
+# definition of the variables
+
+n<-which(colnames(Final_Dat)==y[1]) #colnumber of dep variable
+ycont1<-(Final_Dat[,n]) # store the dep var
+
+xcont<-(Final_Dat[,((ncol(data)+1):ncol(Final_Dat))]) #store the regressors (all lags)
+vec<-NULL
+nom<-NULL
+mat<-matrix(NA,nrow = nrow(xcont),ncol = lags)
+for(i in 1:lags) { #colnumbers of lags of independent variable
+  nam <- paste("n", i, sep = "")
+  vec[i]<-assign(nam,which(colnames(xcont)==paste(x[1],"lag",i,sep="")))
+  mat[,i]<-xcont[,vec[i]]
+  nom[i]<-c(paste("ycont",i+1,sep=""))
+}
+
+colnames(mat)<-nom
+xcontnogc<-xcont[,-c(vec)] #kick out gc lags varaibles
+
+lista<-list()
+lasso1=ic_glmnetboundT(xcontnogc,ycont1,crit = crit,alpha=alpha,standardize=F)
+for(i in 1:lags) {
+nam3<-paste("lasso", i+1, sep = "")
+  lista[[i]]<-assign(nam3,ic_glmnetboundT(xcontnogc,mat[,i],crit = crit,alpha=alpha,standardize=F))
+}
+
+vec1<-as.data.frame(t(lasso1$coefficients)) #store the coefficient of the ic-lasso in a vector
+
+coef<-as.data.frame(matrix(NA,nrow =lags,ncol = (ncol(xcontnogc)+1)))
+for(i in 1:lags) {
+  nam4<-paste("vec", i+1, sep = "")
+  coef[i,]<-assign(nam4,as.data.frame(t(lista[[i]]$coefficients)))
+}
+colnames(coef)<-colnames(vec1)
+
+tri<-bind_rows(vec1,coef)
+tri[is.na(tri)] <-0
+
+
+
+if ((all(tri[1:lags,2:ncol(xcontnogc)]==0)==TRUE)){
+  Yma<-ycont1
+  FitMA<-lm(Yma~mat)
+} else{
+  tri<-as.data.frame(tri[,colSums(tri !=0, na.rm=T)>0]) #eliminate those columns where BOTH are zero
+  xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
+  newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
+  newX<-as.matrix(newX)
+  newXX<-cbind(mat,newX) #keep the matching columns + GC coef
+  FitMR<-lm(ycont1~newX) #OLS regression to get residuals for the auxiliary model
+  Yma<-matrix(FitMR$residuals) #residuals for the MA
+  FitMA<-lm(Yma~newXX) # run the MA
+}
+output<-((nrow(xcont)-ncol(newXX))/lags)*((summary(FitMA)$r.squared)/(1-(summary(FitMA)$r.squared)) )
+
+if(abs(output)<=qf((1-sign),df1=lags,df2=abs(nrow(xcont)-ncol(newXX)))){
+  pval1<-pf(output,df1=lags,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+  print(paste(x,"does NOT Granger-cause", y))
+  print(paste("P-value=",pval1))
+}
+
+if(abs(output)>qf((1-sign),df1=lags,df2=abs(nrow(xcont)-ncol(newXX)))){
+  pval1<-pf(output,df1=lags,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+  print(paste(x,"Granger-cause", y))
+  print(paste("P-value=",pval1))
+}
+
+}
+
+
