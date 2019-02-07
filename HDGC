@@ -1,27 +1,27 @@
 # Package dependencies
-install.packages(readxl);library(readxl)
-install.packages(glmnet);library(glmnet)
-install.packages(aod);library(aod)
-install.packages(dplyr);library(dplyr)
-install.packages(HDGC);library(HDGC)
+#install.packages(readxl);library(readxl)
+#install.packages(glmnet);library(glmnet)
+#install.packages(aod);library(aod)
+#install.packages(dplyr);library(dplyr)
+#install.packages(HDGC);library(HDGC)
 ###############################################################################################################
 ###############################################################################################################
 ######################################## FOR TESTING ##########################################################
-dataset <- read_excel("FRED_QD 1995-2015.xlsx",
-                   col_types = "numeric")
-dataset<-as.data.frame(dataset[, colSums(is.na(dataset))==0]) #eliminate missings if any
-dataset<-as.data.frame(scale(dataset)) #standardize
-y="GDPC96"
-x="M1REALx"
-lags=2
-crit="bic"
-alpha=1
-sign=0.05
+#dataset <- read_excel("FRED_QD 1995-2015.xlsx",
+#                   col_types = "numeric")
+#dataset<-as.data.frame(dataset[, colSums(is.na(dataset))==0]) #eliminate missings if any
+#dataset<-as.data.frame(scale(dataset)) #standardize
+#y="GDPC96"
+#x="M1REALx"
+#lags=2
+#crit="bic"
+#alpha=1
+#sign=0.05
 ###################################################################################################################
 ###################################################################################################################
 
 
-HDGC<-function(x,y,data,lags,crit,alpha,sign){
+HDGC<-function(x,y,data,std,lags,crit,alpha,sign){
 
 # errors and warnings
 if(is.data.frame(data)==F) stop('data is not a dataframe')
@@ -30,9 +30,9 @@ if(is.data.frame(data)==F) stop('data is not a dataframe')
   #data<-(data[, colSums(is.na(data))==0])
 #} #warning('dataset contains missings, columns have been removed')
 
-#  if(std==T){
-#  scale(data)
-#}
+  if(std==T){
+  data<-as.data.frame(scale(data))
+}
 
 if(lags<=0) stop('lags argument must be positive')
 
@@ -130,5 +130,4 @@ if(abs(output)>qf((1-sign),df1=lags,df2=abs(nrow(xcont)-ncol(newXX)))){
 }
 
 }
-
 
