@@ -1,0 +1,185 @@
+NetGC<-function(data,log,crit,alpha,HR,sign,plot=c("circle","veins"),cluster,verbose){
+
+  if(is.data.frame(data)==F) stop('data is not a dataframe')
+
+  if(log==T){
+data<-as.matrix(log(data)) #take logs of every asset
+  }
+
+
+#LAGS Creation
+ldatalag1d<-data.frame(matrix(NA, nrow = nrow(data), ncol = ncol(data))) #create lag 1 daily
+k=1
+for(m in 1:ncol(data)){
+  ldatalag1d[,m]<-c(NA,data[(1:(nrow(data)-1)),k])  #define lags
+  k=k+1
+}
+colnames(ldatalag1d)<-c(paste(colnames(data),"lag1d", sep = ""))
+
+
+
+ldatalag1w<-data.frame(matrix(NA, nrow = (nrow(data)-5), ncol = ncol(data))) #create lag 1 weekly
+for(m in 1:ncol(data)){
+  ldatalag1w[,m]<-rollapply(data[1:(nrow(data)-1),m], width = 5, by = 1, FUN = mean, align = "left")
+}
+colnames(ldatalag1w)<-c(paste(colnames(data),"lag1w", sep = ""))
+
+
+
+ldatalag1m<-data.frame(matrix(NA, nrow = (nrow(data)-22), ncol = ncol(data))) #create lag 1 monthly
+for(m in 1:ncol(data)){
+  ldatalag1m[,m]<-rollapply(data[1:(nrow(data)-1),m], width = 22, by = 1, FUN = mean, align = "left")
+}
+colnames(ldatalag1m)<-c(paste(colnames(data),"lag1m", sep = ""))
+
+#cut off the top missings
+lDatafin<-cbind(data[23:nrow(data),],ldatalag1d[23:nrow(ldatalag1d),],ldatalag1w[18:nrow(ldatalag1w),],ldatalag1m)
+
+##########################################################################
+
+RVassets<-lDatafin[,(1:ncol(data))] #vector of stocks
+
+xcont<-(lDatafin[,((ncol(data)+1):ncol(lDatafin))]) #store the regressors (all lags)
+name=c(names(RVassets))
+feature=paste(names(RVassets))
+dat<-matrix(0,nrow=ncol(data),ncol=ncol(data))
+rownames(dat)<-names(xcont[1:ncol(data)])
+colnames(dat)<-feature
+for (i in 1:ncol(data)) {
+  ycont1<-RVassets[,i] #for each asset as dep variable
+  for (j in 1:ncol(data)) {
+    xcontnogc<-xcont[,-c(j,(j+ncol(data)),(j+(ncol(data)*2)))]
+    ycont2<-xcont[,j]
+    ycont3<-xcont[,(j+ncol(data))]
+    ycont4<-xcont[,(j+(ncol(data)*2))]
+
+    lasso1=ic_glmnetboundT(xcontnogc,ycont1,crit = crit,alpha=alpha,standardize=F) #lasso post double 1
+    lasso2=ic_glmnetboundT(xcontnogc,ycont2,crit = crit,alpha=alpha,standardize=F) #lasso post double 2
+    lasso3=ic_glmnetboundT(xcontnogc,ycont3,crit = crit,alpha=alpha,standardize=F) #lasso post double 3
+    lasso4=ic_glmnetboundT(xcontnogc,ycont4,crit = crit,alpha=alpha,standardize=F) #lasso post double 4
+
+    vec1<-as.data.frame(t(lasso1$coefficients)) #store the coefficient of the ic-lasso in a vector
+    vec2<-as.data.frame(t(lasso2$coefficients)) #store the coefficient of the ic-lasso in a vector
+    vec3<-as.data.frame(t(lasso3$coefficients)) #store the coefficient of the ic-lasso in a vector
+    vec4<-as.data.frame(t(lasso4$coefficients)) #store the coefficient of the ic-lasso in a vector
+
+    tri<-bind_rows(vec1,vec2,vec3,vec4)
+    tri[is.na(tri)] <- 0
+
+    if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==TRUE)){ #if all the coeff are set to zero then run simple ols
+      Yma<-ycont1
+      FitMA<-lm(Yma~ycont2+ycont3+ycont4)
+    } else if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==F)&(HR==T)){
+      tri<-as.data.frame(tri[,colSums(tri !=0)>0]) #eliminate those columns where BOTH are zero
+      xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
+      newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
+      newX<-as.matrix(newX)
+      newXX<-cbind(ycont2,ycont3,ycont4,newX)
+      newXX<-as.matrix(newXX)
+      FitMR<-lm(ycont1~newX) #OLS regression to get residuals for the auxiliary model
+      Yma<-matrix(FitMR$residuals) #residuals for the MA
+
+      #### HETEROSCEDASTIC ROBUST ####
+      step2<-lm(ycont2~newX) #each of the excluded regressors is regressed on the included ones and residuals are taken
+      step2<-(step2$residuals)
+      step22<-lm(ycont3~newX)
+      step22<-(step22$residuals)
+      step222<-lm(ycont4~newX)
+      step222<-(step222$residuals)
+
+
+      prod1<-Yma*(step2)
+      prod2<-Yma*(step22)
+      prod3<-Yma*(step222)
+
+
+
+      depv<-c(rep(1,nrow(lDatafin)))
+      regre<-lm(formula=depv~ prod1+ prod2+ prod3 -1) #SHOULD BE WITHOUT CONST
+
+
+      rss<-RSS(regre) #calculate RSS
+
+    output<-(nrow(lDatafin)-rss)
+
+    if(output<=qchisq((1-sign),df=3)){
+      pval1<-pchisq(output,df=3,lower.tail = F)
+      if(verbose==T){
+      print(paste(names(xcont[j]),"does NOT GC",names(RVassets[i])))
+        print(pval1)}
+    }
+
+    if(output>qchisq((1-sign),df=3)){ #reject/not reject (F test for small samples)
+      pval1<-pchisq(output,df=3,lower.tail = F)
+      if(verbose==T){
+      print(paste(names(xcont[j]),"does GC",names(RVassets[i])))
+        print(pval1)}
+      dat[which(rownames(dat)==names(xcont[j])),which(colnames(dat)==names(RVassets[i]))]<-1
+    }
+    }
+    else if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==F)&(HR==F)){
+      tri<-as.data.frame(tri[,colSums(tri !=0)>0]) #eliminate those columns where BOTH are zero
+      xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
+      newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
+      newX<-as.matrix(newX)
+      newXX<-cbind(ycont2,ycont3,ycont4,newX)
+      newXX<-as.matrix(newXX)
+      FitMR<-lm(ycont1~newX) #OLS regression to get residuals for the auxiliary model
+      Yma<-matrix(FitMR$residuals) #residuals for the MA
+      FitMA<-lm(Yma~newXX)
+
+      output<-((nrow(xcont)-ncol(newXX))/3)*((summary(FitMA)$r.squared)/(1-(summary(FitMA)$r.squared)) )
+
+      if(output<=qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)))){
+        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+        if(verbose==T){
+          print(paste(names(xcont[j]),"does NOT GC",names(RVassets[i])))
+          print(pval1)}
+      }
+
+      if(output>qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)))){
+        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+        if(verbose==T){
+          print(paste(names(xcont[j]),"does GC",names(RVassets[i])))
+          print(pval1)}
+        dat[which(rownames(dat)==names(xcont[j])),which(colnames(dat)==names(RVassets[i]))]<-1
+      }
+    }
+  }
+}
+rownames(dat)<-colnames(dat)
+dat<-as.matrix(dat)
+colnames(dat)<-c()
+
+#Network creation
+
+network=graph_from_adjacency_matrix(dat, mode='directed',diag=F,add.rownames = TRUE )
+V(network)$label = rownames(dat)
+
+network2<-get.edgelist(network, names=TRUE) # makes it into an edge list
+network3<-graph_from_edgelist(network2) #create graph
+
+V(network3)$label=rownames(dat)
+if (plot=="circle"){
+plot(network3,directed=T, layout=layout.circle, main="Realized Volatility Contagion Network",
+     edge.arrow.size=.1, vertex.color=c("gold"), vertex.size=5, vertex.frame.color="gray",
+     vertex.label.color="black",vertex.label.cex=0.5, vertex.label.dist=0.5, edge.curved=0)
+  }
+
+if (plot=="veins"){
+plot(network3, vertex.size=10,edge.arrow.size=.15,vertex.label.cex=0.5,
+     vertex.label.dist=0, main="Realized Volatility Contagion Network")#,edge.width=c(rep(3,3),rep(1,161)))
+}
+
+if(cluster==TRUE){
+## make graph undirected ##
+net.sym <- as.undirected(network3, mode= "collapse")
+
+ceb <- cluster_edge_betweenness(net.sym,directed=T)
+
+dendPlot(ceb, mode="hclust")
+
+plot(ceb, net.sym,vertex.size=10,
+     vertex.label.color="black",vertex.label.cex=0.51, vertex.label.dist=1, edge.curved=0)
+}
+}
