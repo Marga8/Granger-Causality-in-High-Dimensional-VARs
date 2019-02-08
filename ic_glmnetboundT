@@ -1,4 +1,4 @@
-ic.glmnetboundedT = function (x, y, crit=c("bic","ebic","aic","aicc","hqc"),...)
+ic_glmnetboundT = function (x, y, crit=c("bic","ebic","aic","aicc","hqc"),...)
 {
   if (is.matrix(x) == FALSE) {
     x = as.matrix(x)
