@@ -1,6 +1,6 @@
 # Granger-Causality-in-High-Dimensional-VARs (HDGC)
 
-This Github repo contains the R scripts used to carry out Granger causality tests as used in the empirical applications of the paper: Hecq,A., Margaritella,L., Smeekes,S. 2019: "Granger Causality Testing in High-Dimensional VARs: a Post-Double-Selection Procedure" (forthcoming).
+This Github repo contains the R scripts used to carry out Granger causality tests as used in the empirical applications of the paper: Hecq,A., Margaritella,L., Smeekes,S. (2019), "Granger Causality Testing in High-Dimensional VARs: a Post-Double-Selection Procedure" (forthcoming).
 
                                              ########################
                                                    DESCRIPTION:
