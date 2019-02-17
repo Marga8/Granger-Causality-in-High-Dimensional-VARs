@@ -128,17 +128,17 @@ for (i in 1:ncol(data)) {
       Yma<-matrix(FitMR$residuals) #residuals for the MA
       FitMA<-lm(Yma~newXX)
 
-      output<-((nrow(xcont)-ncol(newXX))/3)*((summary(FitMA)$r.squared)/(1-(summary(FitMA)$r.squared)) )
+      output<-((nrow(xcont)-ncol(newXX)-3)/3)*((summary(FitMA)$r.squared)/(1-(summary(FitMA)$r.squared)) )
 
-      if(output<=qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)))){
-        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+      if(output<=qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)-3))){
+        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)-3),lower.tail = F)
         if(verbose==T){
           print(paste(names(xcont[j]),"does NOT GC",names(RVassets[i])))
           print(pval1)}
       }
 
-      if(output>qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)))){
-        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)),lower.tail = F)
+      if(output>qf((1-sign),df1=3,df2=abs(nrow(xcont)-ncol(newXX)-3))){
+        pval1<-pf(output,df1=3,df2=abs(nrow(xcont)-ncol(newXX)-3),lower.tail = F)
         if(verbose==T){
           print(paste(names(xcont[j]),"does GC",names(RVassets[i])))
           print(pval1)}
