@@ -1,6 +1,6 @@
 # Granger-Causality-in-High-Dimensional-VARs (HDGC)
 
-This Github repo contains the R scripts used to carry out Granger causality tests as used in the empirical applications of the paper: Hecq,A., Margaritella,L., Smeekes,S. (2019), "Granger Causality Testing in High-Dimensional VARs: a Post-Double-Selection Procedure" (forthcoming).
+This Github repo contains the R scripts used to carry out Granger causality tests as used in the empirical applications of the paper: Hecq,A., Margaritella,L., Smeekes,S. (2019), "Granger Causality Testing in High-Dimensional VARs: a Post-Double-Selection Procedure".
 
                                              ########################
                                                    DESCRIPTION:
@@ -32,19 +32,3 @@ This is a function that takes as imputs:
 - cluster= TRUE calculate and plot clusters using edge-betweennes algorithm
 - verbose= TRUE plot in console all the GC tests of the single series
 
-# TS Simulations 
-The script contains three DGPs for simulating stationary VAR(p) with identity variance covariance matrix
-
-
-# TS Simulations with Vcov 
-The script contains three DGPs for simulating stationary VAR(p) with Toeplitz variance covariance matrix
-
-
-# Lasso_info_criteria(ic.glmnet) 
-The script contains the function (ic.glmnet) which is a wrapper of glmnet for estimating Lasso using Information Criteria (AIC,BIC,EBIC,HQ) to tune the penalty
-
-# RV Contagion Network (LM)
-The script allows to use the post-double selection method proposed in Hecq,A., Margaritella,L., Smeekes,S. 2019 in a Heterogeneous VAR modeling framework to estimate a Realized volatility contagion networks.
-
-# RV contagion network (Bivariate GC)
-Bivariate GC alternative to RV Contagion Network (LM)
