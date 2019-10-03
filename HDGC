@@ -115,6 +115,8 @@ HDGC<-function(x,y,data,std,lags,crit,alpha,sign){
     tri<-as.data.frame(tri[,colSums(tri !=0, na.rm=T)>0]) #eliminate those columns where BOTH are zero
     xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
     newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
+    #############################################################################################
+    ### NOTE: 2 lags of the dependent variable, if using lag>2 then adapt the following lines ###
     if ((names(xcont[2])!=names(newX[1]))==TRUE){ # if dep var lag 1 has not been selected, force it in
       newX<-as.matrix(newX)
       newX<-cbind(ycontlagy1,newX)
@@ -123,6 +125,7 @@ HDGC<-function(x,y,data,std,lags,crit,alpha,sign){
       newX<-as.matrix(newX)
       newX<-cbind(ycontlagy2,newX)
     }
+    #############################################################################################
     newX<-as.matrix(newX)
     newXX<-cbind(mat,newX) #keep the matching columns + GC coef
     FitMR<-lm(ycont1~newX) #OLS regression to get residuals for the auxiliary model
