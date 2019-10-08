@@ -1,3 +1,14 @@
+######### Packages dependencies:  ##########
+###library(igraph)
+###library(zoo)
+###library(qpcR)
+###library(dplyr)
+###library(glmnet)
+###library(aod)
+###library(readxl)
+############################################
+
+
 NetGC<-function(data,log,crit,alpha,HR,sign,plot=c("circle","veins"),cluster,verbose){
 
   if(is.data.frame(data)==F) stop('data is not a dataframe')
@@ -47,6 +58,9 @@ rownames(dat)<-names(xcont[1:ncol(data)])
 colnames(dat)<-feature
 for (i in 1:ncol(data)) {
   ycont1<-RVassets[,i] #for each asset as dep variable
+  ycont1lagd<-xcont[,i] # dep variable lag day
+  ycont1lagw<-xcont[,(i+ncol(data))] #dep variable lag week
+  ycont1lagm<-xcont[,(i+(ncol(data)*2))] #dep variable lag month
   for (j in 1:ncol(data)) {
     xcontnogc<-xcont[,-c(j,(j+ncol(data)),(j+(ncol(data)*2)))]
     ycont2<-xcont[,j]
@@ -73,6 +87,18 @@ for (i in 1:ncol(data)) {
       tri<-as.data.frame(tri[,colSums(tri !=0)>0]) #eliminate those columns where BOTH are zero
       xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
       newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
+      if ((is.element(names(xcont[i]), names(newX)))==FALSE){ #if lag daily of y has not been selected force in
+          newX<-as.matrix(newX)
+          newX<-cbind(ycont1lagd,newX)
+        }
+        if ((is.element(names(xcont[(i+ncol(data))]), names(newX)))==FALSE){ #if lag weekly of y has not been selected force in
+          newX<-as.matrix(newX)   
+          newX<-cbind(ycont1lagw,newX)
+        }
+        if ((is.element(names(xcont[(i+(ncol(data)*2))]), names(newX)))==FALSE){ #if lag monthly of y has not been selected force in
+          newX<-as.matrix(newX)
+          newX<-cbind(ycont1lagm,newX)
+        }
       newX<-as.matrix(newX)
       newXX<-cbind(ycont2,ycont3,ycont4,newX)
       newXX<-as.matrix(newXX)
