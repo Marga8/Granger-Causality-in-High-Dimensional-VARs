@@ -42,7 +42,7 @@ This is a function that takes as imputs:
 - cluster= TRUE calculate and plot clusters using edge-betweennes algorithm
 - verbose= TRUE plot in console all the GC tests of the single series
  
- Ex: Networks in Realized volatilities (49 large capitalization stocks, daily transactions 01/01/1999-31/12/2007)
+ Ex: Networks in Realized volatilities (30 large capitalization stocks, daily transactions: use dataset "Variances_10min.csv")
  
    NetGC(data=RVolatility_data,log=T,crit="bic",alpha=1,HR=T,sign=0.01,plot=c("circle"),cluster=T,verbose=F)
 
