@@ -81,9 +81,12 @@ for (i in 1:ncol(data)) {
     tri[is.na(tri)] <- 0
 
     if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==TRUE)){ #if all the coeff are set to zero then run simple ols
-      Yma<-ycont1
-      FitMA<-lm(Yma~ycont2+ycont3+ycont4)
-    } else if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==F)&(HR==T)){
+      FitMR<-lm(ycont1~ycont1lagd+ycont1lagw+ycont1lagm)
+            Yma<-matrix(FitMR$residuals)
+            FitMA<-lm(Yma~ycont2+ycont3+ycont4+ycont1lagd+ycont1lagw+ycont1lagm)
+            newXX<-matrix(NA,nrow=1,ncol = 6)
+    } 
+    else if ((all(tri[1:4,2:(ncol(lDatafin)-(ncol(data)+1)-2)]==0)==F)&(HR==T)){
       tri<-as.data.frame(tri[,colSums(tri !=0)>0]) #eliminate those columns where BOTH are zero
       xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
       newX<-as.data.frame(lapply(intersect(names(xcont),names(tri)),function(name) xcont[name])) #keep the matching columns
