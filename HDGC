@@ -109,8 +109,10 @@ HDGC<-function(x,y,data,std,lags,crit,alpha,sign){
   
   
   if ((all(tri[1:lags,2:ncol(xcontnogc)]==0)==TRUE)){
-    Yma<-ycont1
-    FitMA<-lm(Yma~mat)
+            FitMR<-lm(ycont1~ycontlagy1)
+            Yma<-matrix(FitMR$residuals)
+            FitMA<-lm(Yma~df1[,(ncol(xcontnogc)+1)]+ycontlagy1)
+            newXX<-matrix(NA,nrow=1,ncol = lags)
   } else{
     tri<-as.data.frame(tri[,colSums(tri !=0, na.rm=T)>0]) #eliminate those columns where BOTH are zero
     xcont<-as.data.frame(xcont)  #transform into dataframe to use dplyr
